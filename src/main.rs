@@ -1,25 +1,26 @@
-mod LLM_runner;
+//mod LLM_runner;
+mod LLM_run;
 
 use std::env;
 use dotenv::dotenv;
 use reqwest::Client;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
-use url::Url;
 use tokio::time::{sleep, Duration};
-
-use LLM_runner::{LLMRunner, ContentAnalysis}
+use std::io::{self, Write};
+//use crate::LLM_run::LLMRunner;
+use crate::LLM_run::{LLMRunner, ContentAnalysis};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
     print!("Enter the URL: "); 
-    io::stdout().flush()?; 
+    io::stdout().flush()?;
 
-    let mut url = String::new(); 
+    let mut url_input = String::new();
     io::stdin().read_line(&mut url_input); 
-    let mut url = url.trim().to_string();
+    let mut url = url_input.trim().to_string();
 
     if url.is_empty(){
         println!("No URL provided. Existing "); 
@@ -31,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Auto-corrected URL: {}", url);
      }
 
-     print("Enter the CSS selector for the main content (e.g., 'article', '.content-body', '#main-text'): ");
+     println!("Enter the CSS selector for the main content (e.g., 'article', '.content-body', '#main-text'): ");
      io::stdout().flush()?; 
      let mut selector_input = String::new();
      io::stdin().read_line(&mut selector_input);
@@ -68,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|e| format!("Failed to parse content selector '{}': {:?}", content_selector_str, e))?;
      println!("Looking for content elements matching selector: {}", content_selector_str); 
 
-     let mut scrapper_content_part = Vec::new(); 
+     let mut scrapper_content_parts = Vec::new();
      for element in document.select(&content_selector) {
          let text = element.text().collect::<Vec<_>>().join(" ").trim().to_string();
          if !text.is_empty() {
@@ -82,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
      let combined_scrapped_content = scrapper_content_parts.join("\n\n ---- \n\n");
      println!("Total characters in selected content: {}", combined_scrapped_content.len()); 
-     if combined_scrapped_content.len() > 500 { 
+     if combined_scrapped_content.len() > 500 {
         println!("Snipped of selected content: \n{}...", &combined_scrapped_content[..500]);
      }else{
         println!("Selected content: \n{}", combined_scrapped_content);
@@ -97,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("\nRequesting LLM analysis for the scraped content...");
             match llm_runner.analyze_web_content(
                 &page_title,
-                &combined_scraped_content, 
+                &combined_scrapped_content,
                 &url,
             ).await {
                 Ok(analysis) => {
@@ -115,11 +116,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            if !combined_scraped_content.is_empty() {
-                let snippet_for_sentiment = if combined_scraped_content.len() > 500 {
-                    &combined_scraped_content[..500]
+            if !combined_scrapped_content.is_empty() {
+                let snippet_for_sentiment = if combined_scrapped_content.len() > 500 {
+                    &combined_scrapped_content[..500]
                 } else {
-                    &combined_scraped_content
+                    &combined_scrapped_content
                 };
                 println!("\nRequesting specific sentiment analysis for a snippet...");
                  match llm_runner.analyze_sentiment(snippet_for_sentiment).await {

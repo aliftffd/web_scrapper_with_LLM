@@ -56,7 +56,12 @@ pub struct SentimentResult {
     pub confidence: f64,
     pub explanation: String,
 }
-
+#[derive(Deserialize,Debug)]
+pub struct ParsedSentimentLLMResponse{
+    pub label: String,
+    pub confidence: f64,
+    pub explanation: String,
+}
 // Main LLM runner struct
 pub struct LLMRunner {
     client: Client,
